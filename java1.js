@@ -1384,7 +1384,7 @@ function createTweetEmbedElement(tweetId) {
             justify-content: center;
             gap: 10px;
             position: fixed;
-            right: 9px;
+            right: 11px;
             top: 95px; /* Position it just below the GUI bar */
             z-index: 9998;
         `;
@@ -1412,6 +1412,7 @@ function createTweetEmbedElement(tweetId) {
         scrollButtonContainer.appendChild(scrollTopButton);
         scrollButtonContainer.appendChild(scrollBottomButton);
         otkGui.appendChild(scrollButtonContainer);
+        applyScrollButtonPosition();
     } else { // If GUI wrapper exists, ensure consistency
         if (document.body.style.paddingTop !== '89px') {
             document.body.style.paddingTop = '89px';
@@ -2884,7 +2885,8 @@ function renderThreadList() {
             left: 0;
             right: 0;
             bottom: 0;
-            overflow-y: auto; /* This container scrolls */
+            overflow-y: auto;
+            overflow-y: overlay;
             padding: 10px 23px; /* 10px top/bottom, 23px left/right for content and scrollbar */
             box-sizing: border-box;
             /* width and height are now controlled by absolute positioning */
@@ -4555,7 +4557,7 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
 
             const messageHeader = document.createElement('div');
 
-            const isHeaderBold = allThemeSettings.otkMessageHeaderBold !== 'false';
+            const isHeaderBold = allThemeSettings.otkMessageHeaderBold !== 'Disabled' && allThemeSettings.otkMessageHeaderBold !== 'false' && allThemeSettings.otkMessageHeaderBold !== false;
             const headerFontWeight = isHeaderBold ? 'bold' : 'normal';
 
             messageHeader.style.cssText = `
@@ -9424,7 +9426,13 @@ function createThemeOptionRow(options) {
         viewerSectionContent.appendChild(createThemeOptionRow({ labelText: "Pinned Message Outline Colour:", storageKey: 'pinHighlightBorderColor', cssVariable: '--otk-pin-highlight-border-color', defaultValue: '#FFD700', inputType: 'color', idSuffix: 'pin-border', requiresRerender: true }));
         viewerSectionContent.appendChild(createThemeOptionRow({ labelText: "Next Message Icon Background Colour:", storageKey: 'plusIconBgColor', cssVariable: '--otk-plus-icon-bg-color', defaultValue: '#d9d9d9', inputType: 'color', idSuffix: 'plus-icon-bg-color', requiresRerender: false }));
         viewerSectionContent.appendChild(createThemeOptionRow({ labelText: "Next Message Icon Colour:", storageKey: 'plusIconColor', cssVariable: '--otk-plus-icon-color', defaultValue: '#000000', inputType: 'color', idSuffix: 'plus-icon-color', requiresRerender: false }));
-        viewerSectionContent.appendChild(createThemeOptionRow({ labelText: "Bold Message Headers:", storageKey: 'otkMessageHeaderBold', defaultValue: 'true', inputType: 'checkbox', idSuffix: 'message-header-bold', requiresRerender: true }));
+        viewerSectionContent.appendChild(createDropdownRow({
+            labelText: 'Bold Message Headers:',
+            storageKey: 'otkMessageHeaderBold',
+            options: ['Enabled', 'Disabled'],
+            defaultValue: 'Enabled',
+            requiresRerender: true
+        }));
         viewerSectionContent.appendChild(createThemeOptionRow({ labelText: "Quote Link Colour:", storageKey: 'otkQuoteLinkColor', cssVariable: '--otk-quote-link-color', defaultValue: '#88ccee', inputType: 'color', idSuffix: 'quote-link-color', requiresRerender: true }));
 
         // --- Messages Section ---
@@ -9474,8 +9482,80 @@ function createThemeOptionRow(options) {
         qrThemingSection.appendChild(createThemeOptionRow({ labelText: "Text Area Background Colour:", storageKey: 'qrTextareaBgColor', cssVariable: '--otk-qr-textarea-bg-color', defaultValue: '#222222', inputType: 'color', idSuffix: 'qr-textarea-bg' }));
         qrThemingSection.appendChild(createThemeOptionRow({ labelText: "Text Area Font Colour:", storageKey: 'qrTextareaTextColor', cssVariable: '--otk-qr-textarea-text-color', defaultValue: '#eeeeee', inputType: 'color', idSuffix: 'qr-textarea-text' }));
 
-        // --- Image Blurring Section ---
-        const imageBlurSection = createCollapsibleSubSection('Image Blur');
+        // --- PiP Mode Section ---
+        const pipBgSection = createCollapsibleSubSection('PiP Mode');
+        pipBgSection.appendChild(createThemeOptionRow({ labelText: "PiP Mode Background Colour:", storageKey: 'pipBackgroundColor', cssVariable: '--otk-pip-bg-color', defaultValue: '#1a1a1a', inputType: 'color', idSuffix: 'pip-bg' }));
+        pipBgSection.appendChild(createImagePickerRow({
+            labelText: 'Pip Mode Background Image URL:',
+            storageKey: 'pipBackgroundImageUrl',
+            idSuffix: 'pip-bg'
+        }));
+        pipBgSection.appendChild(createDropdownRow({
+            labelText: 'PiP Mode Background Image Size:',
+            storageKey: 'pipBgSize',
+            options: ['auto', 'cover', 'contain'],
+            defaultValue: 'cover',
+            requiresRerender: false
+        }));
+        pipBgSection.appendChild(createDropdownRow({
+            labelText: 'PiP Mode Background Repeat Mode:',
+            storageKey: 'pipBgRepeat',
+            options: ['no-repeat', 'repeat', 'repeat-x', 'repeat-y'],
+            defaultValue: 'no-repeat',
+            requiresRerender: false
+        }));
+        pipBgSection.appendChild(createDropdownRow({
+            labelText: 'PiP Mode Background Position:',
+            storageKey: 'pipBgPosition',
+            options: ['center', 'top', 'bottom', 'left', 'right'],
+            defaultValue: 'center',
+            requiresRerender: false
+        }));
+
+        // --- Options Panel Section ---
+        const optionsPanelSection = createCollapsibleSubSection('Options Panel');
+        optionsPanelSection.appendChild(createThemeOptionRow({ labelText: "Panel Text:", storageKey: 'optionsTextColor', cssVariable: '--otk-options-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'options-text' }));
+        optionsPanelSection.appendChild(createThemeOptionRow({ labelText: "Main Background Colour:", storageKey: 'optionsMainBgColor', cssVariable: '--otk-options-main-bg-color', defaultValue: '#2c2c2c', inputType: 'color', idSuffix: 'options-main-bg', requiresRerender: false }));
+        optionsPanelSection.appendChild(createThemeOptionRow({ labelText: "Alternate Background Colour:", storageKey: 'optionsAltBgColor', cssVariable: '--otk-options-alt-bg-color', defaultValue: '#383838', inputType: 'color', idSuffix: 'options-alt-bg', requiresRerender: false }));
+
+        // --- Misc Section ---
+        const miscSectionContent = createCollapsibleSubSection('Misc');
+        miscSectionContent.appendChild(createDropdownRow({
+            labelText: 'Scroll Button Position:',
+            storageKey: 'otkScrollButtonPosition',
+            options: ['Default', 'Bottom of Page'],
+            defaultValue: 'Bottom of Page',
+            requiresRerender: false
+        }));
+        miscSectionContent.appendChild(createDropdownRow({
+            labelText: 'Tab Title Stats Animation:',
+            storageKey: 'tabTitleStatsAnimation',
+            options: ['Flash', 'None'],
+            defaultValue: 'Flash',
+            requiresRerender: false
+        }));
+        miscSectionContent.appendChild(createThemeOptionRow({
+            labelText: "Scroll to Top/Bottom Icon Colour:",
+            storageKey: 'scrollTopBottomIconColor',
+            cssVariable: '--otk-scroll-top-bottom-icon-color',
+            defaultValue: '#FFFFFF',
+            inputType: 'color',
+            idSuffix: 'scroll-top-bottom-icon'
+        }));
+        miscSectionContent.appendChild(createThemeOptionRow({
+            labelText: "Tab Title Stats Animation Speed:",
+            storageKey: 'tabTitleStatsAnimationSpeed',
+            defaultValue: '1',
+            inputType: 'number',
+            unit: null,
+            min: 0.1,
+            max: 10,
+            step: 0.1,
+            idSuffix: 'tab-title-stats-animation-speed',
+            requiresRerender: false
+        }));
+
+        // --- Image Blurring ---
         const blurGroup = document.createElement('div');
         blurGroup.classList.add('otk-option-row');
 
@@ -9566,80 +9646,7 @@ function createThemeOptionRow(options) {
         blurControlsWrapper.appendChild(blurDefaultBtn);
         blurGroup.appendChild(blurLabel);
         blurGroup.appendChild(blurControlsWrapper);
-        imageBlurSection.appendChild(blurGroup);
-
-        // --- PiP Mode Section ---
-        const pipBgSection = createCollapsibleSubSection('PiP Mode');
-        pipBgSection.appendChild(createThemeOptionRow({ labelText: "PiP Mode Background Colour:", storageKey: 'pipBackgroundColor', cssVariable: '--otk-pip-bg-color', defaultValue: '#1a1a1a', inputType: 'color', idSuffix: 'pip-bg' }));
-        pipBgSection.appendChild(createImagePickerRow({
-            labelText: 'Pip Mode Background Image URL:',
-            storageKey: 'pipBackgroundImageUrl',
-            idSuffix: 'pip-bg'
-        }));
-        pipBgSection.appendChild(createDropdownRow({
-            labelText: 'PiP Mode Background Image Size:',
-            storageKey: 'pipBgSize',
-            options: ['auto', 'cover', 'contain'],
-            defaultValue: 'cover',
-            requiresRerender: false
-        }));
-        pipBgSection.appendChild(createDropdownRow({
-            labelText: 'PiP Mode Background Repeat Mode:',
-            storageKey: 'pipBgRepeat',
-            options: ['no-repeat', 'repeat', 'repeat-x', 'repeat-y'],
-            defaultValue: 'no-repeat',
-            requiresRerender: false
-        }));
-        pipBgSection.appendChild(createDropdownRow({
-            labelText: 'PiP Mode Background Position:',
-            storageKey: 'pipBgPosition',
-            options: ['center', 'top', 'bottom', 'left', 'right'],
-            defaultValue: 'center',
-            requiresRerender: false
-        }));
-
-        // --- Options Panel Section ---
-        const optionsPanelSection = createCollapsibleSubSection('Options Panel');
-        optionsPanelSection.appendChild(createThemeOptionRow({ labelText: "Panel Text:", storageKey: 'optionsTextColor', cssVariable: '--otk-options-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'options-text' }));
-        optionsPanelSection.appendChild(createThemeOptionRow({ labelText: "Main Background Colour:", storageKey: 'optionsMainBgColor', cssVariable: '--otk-options-main-bg-color', defaultValue: '#2c2c2c', inputType: 'color', idSuffix: 'options-main-bg', requiresRerender: false }));
-        optionsPanelSection.appendChild(createThemeOptionRow({ labelText: "Alternate Background Colour:", storageKey: 'optionsAltBgColor', cssVariable: '--otk-options-alt-bg-color', defaultValue: '#383838', inputType: 'color', idSuffix: 'options-alt-bg', requiresRerender: false }));
-
-        // --- Misc Section ---
-        const miscSectionContent = createCollapsibleSubSection('Misc');
-        miscSectionContent.appendChild(createDropdownRow({
-            labelText: 'Scroll Button Position:',
-            storageKey: 'otkScrollButtonPosition',
-            options: ['Default', 'Bottom of Page'],
-            defaultValue: 'Bottom of Page',
-            requiresRerender: false
-        }));
-        miscSectionContent.appendChild(createDropdownRow({
-            labelText: 'Tab Title Stats Animation:',
-            storageKey: 'tabTitleStatsAnimation',
-            options: ['Flash', 'None'],
-            defaultValue: 'Flash',
-            requiresRerender: false
-        }));
-        miscSectionContent.appendChild(createThemeOptionRow({
-            labelText: "Scroll to Top/Bottom Icon Colour:",
-            storageKey: 'scrollTopBottomIconColor',
-            cssVariable: '--otk-scroll-top-bottom-icon-color',
-            defaultValue: '#FFFFFF',
-            inputType: 'color',
-            idSuffix: 'scroll-top-bottom-icon'
-        }));
-        miscSectionContent.appendChild(createThemeOptionRow({
-            labelText: "Tab Title Stats Animation Speed:",
-            storageKey: 'tabTitleStatsAnimationSpeed',
-            defaultValue: '1',
-            inputType: 'number',
-            unit: null,
-            min: 0.1,
-            max: 10,
-            step: 0.1,
-            idSuffix: 'tab-title-stats-animation-speed',
-            requiresRerender: false
-        }));
+        miscSectionContent.appendChild(blurGroup);
 
         const resetAllColorsRow = document.createElement('div');
         resetAllColorsRow.classList.add('otk-option-row');
@@ -9647,20 +9654,21 @@ function createThemeOptionRow(options) {
         resetAllColorsRow.style.marginTop = '20px';
         resetAllColorsRow.style.paddingTop = '15px'; // Add padding to the top of the row
 
-        const resetAllColorsButton = createTrackerButton("Reset All Colors to Default");
-        resetAllColorsButton.id = 'otk-reset-all-colors-btn';
+        const resetAllColorsButton = createTrackerButton("Default Settings");
+        resetAllColorsButton.id = 'otk-default-settings-btn';
         resetAllColorsButton.style.cssText += "padding: 2px 8px; font-size: 11px; height: 25px; box-sizing: border-box; width: 100%;";
         resetAllColorsRow.appendChild(resetAllColorsButton);
         themeOptionsContainer.appendChild(resetAllColorsRow);
 
 
-        function resetAllThemeSettingsToDefault(promptUser = true) {
-            if (promptUser && !confirm("Are you sure you want to reset all theme settings to their defaults?")) {
+        function resetAllMainOptionsToDefault(promptUser = true) {
+            if (promptUser && !confirm("Are you sure you want to reset all settings to default? This will restore both general and theme/colors settings to their defaults.")) {
                 return;
             }
 
-            consoleLog("Resetting all theme settings to default...");
-            // Clear the active theme settings from localStorage.
+            consoleLog("Resetting all Main Options (Theme + General) to default...");
+
+            // 1. Reset Theme/Color Settings
             localStorage.removeItem(THEME_SETTINGS_KEY);
 
             const allOptionConfigs = getAllOptionConfigs();
@@ -9701,19 +9709,59 @@ function createThemeOptionRow(options) {
                 }
             });
 
-            // The applyThemeSettings() call is no longer needed here if called by the initiator.
-            // If called from the reset button, it should call it.
-            // Let's call it for the standalone reset case.
+            // 2. Reset General Settings
+            const generalSettingsKeys = [
+                OTK_TRACKED_KEYWORDS_KEY,
+                'otkTrackedKeywordsMessages',
+                OTK_BLOCKED_KEYWORDS_KEY,
+                'otkMinUpdateSeconds',
+                'otkMaxUpdateSeconds',
+                'otkSuspendAfterInactiveMinutes',
+                'otkMediaLoadMode',
+                BACKGROUND_UPDATES_DISABLED_KEY,
+                'otkClockEnabled',
+                'otkPipModeEnabled',
+                DEBUG_MODE_KEY,
+                'otkAutoLoadUpdates'
+            ];
+            generalSettingsKeys.forEach(key => localStorage.removeItem(key));
+
+            // Reflect general settings defaults in UI
+            const setVal = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val;
+            };
+            setVal('otk-tracked-keywords-input', "otk");
+            setVal('otk-tracked-keywords-messages-input', "otk");
+            setVal('otk-blocked-keywords-input', "");
+            setVal('otk-min-update-time-input', secondsToHHMMSS(10));
+            setVal('otk-max-update-time-input', secondsToHHMMSS(300));
+            setVal('otk-suspend-after-inactive-select', '1');
+            setVal('otk-media-load-mode-select', 'source_first');
+
+            const bgUpdateCheckbox = document.getElementById('otk-enable-bg-update-checkbox');
+            if (bgUpdateCheckbox) bgUpdateCheckbox.checked = true;
+            const autoLoadCheckbox = document.getElementById('otk-auto-load-updates-checkbox');
+            if (autoLoadCheckbox) autoLoadCheckbox.checked = false;
+            const clockToggleCheckbox = document.getElementById('otk-clock-toggle-checkbox');
+            if (clockToggleCheckbox) clockToggleCheckbox.checked = false;
+            const pipToggleCheckbox = document.getElementById('otk-pip-mode-checkbox');
+            if (pipToggleCheckbox) pipToggleCheckbox.checked = false;
+            const debugToggleCheckbox = document.getElementById('otk-debug-mode-checkbox');
+            if (debugToggleCheckbox) debugToggleCheckbox.checked = true;
+
+            // Apply theme changes
+            applyThemeSettings();
+            applyScrollButtonPosition();
+
             if (promptUser) {
-                // No need to call applyThemeSettings() as we have manually set all the properties.
-                // Calling it might re-apply old settings from memory before a refresh.
                 forceViewerRerenderAfterThemeChange(); // Force a re-render if the viewer is open.
-                alert("All theme settings have been reset to their defaults.");
+                alert("All settings under Main Options have been reset to default.");
             }
         }
 
         resetAllColorsButton.addEventListener('click', () => {
-            resetAllThemeSettingsToDefault(true); // true to prompt user
+            resetAllMainOptionsToDefault(true); // true to prompt user
         });
 
         // Event Listeners for cog and close
@@ -10762,6 +10810,17 @@ function setupScrollButtons() {
                 --otk-scroll-top-bottom-icon-color: #FFFFFF;
             }
 
+            #otk-messages-container {
+                scrollbar-width: thin;
+                scrollbar-color: transparent transparent;
+                transition: scrollbar-color 0.3s ease;
+            }
+
+            #otk-messages-container:hover,
+            #otk-messages-container.is-scrolling {
+                scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
+            }
+
             /* Refined Chrome Scrollbar Styling for Overlay Effect */
             #otk-messages-container::-webkit-scrollbar {
                 width: 8px; /* Thinner for a more subtle overlay appearance */
@@ -10772,21 +10831,22 @@ function setupScrollButtons() {
             }
 
             #otk-messages-container::-webkit-scrollbar-thumb {
-                background-color: var(--otk-stats-text-color, #888); /* Use a theme variable, fallback to #888 */
+                background-color: transparent;
                 border-radius: 4px; /* Slightly smaller radius for a thinner bar */
                 /* The border creates a visual separation from content, enhancing overlay feel */
                 border: 2px solid transparent; /* Keep border transparent initially */
                 background-clip: padding-box; /* Ensures background doesn't go under the border */
+                transition: background-color 0.3s ease;
+            }
+
+            #otk-messages-container:hover::-webkit-scrollbar-thumb,
+            #otk-messages-container.is-scrolling::-webkit-scrollbar-thumb {
+                background-color: rgba(155, 155, 155, 0.5);
             }
 
             #otk-messages-container::-webkit-scrollbar-thumb:hover {
-                background-color: #aaa; /* Lighter on hover for better visibility */
-                border-color: var(--otk-viewer-bg-color, #181818); /* Show border matching background on hover */
+                background-color: rgba(155, 155, 155, 0.8) !important;
             }
-            /* Make scrollbar visible only when scrolling or hovering over the container */
-            /* This is harder to achieve with pure CSS for ::-webkit-scrollbar if not natively supported by OS/Browser settings */
-            /* The transparent track and subtle thumb provide a good approximation. */
-            /* True auto-hide on non-interaction often requires JavaScript or browser/OS support for overlay scrollbars. */
 
             /* Placeholder styling */
             #otk-custom-theme-name-input::placeholder {
