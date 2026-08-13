@@ -448,6 +448,7 @@ document.addEventListener("visibilitychange", () => {
     let handleGuiMouseLeaveForArrows = null;
     let handleGuiMouseEnterForArrows = null;
     let isSuspended = false;
+    let previewHideTimeout = null;
     const BACKGROUND_REFRESH_INTERVAL = 30000; // 30 seconds
     let lastViewerScrollTop = 0; // To store scroll position
     let renderedMessageIdsInViewer = new Set(); // To track IDs in viewer for incremental updates
@@ -1384,7 +1385,7 @@ function createTweetEmbedElement(tweetId) {
             justify-content: center;
             gap: 10px;
             position: fixed;
-            right: 11px;
+            right: 10px;
             top: 95px; /* Position it just below the GUI bar */
             z-index: 9998;
         `;
@@ -3952,11 +3953,101 @@ function _populateMessageBody(message, mediaLoadPromises, uniqueImageViewerHashe
                                 quoteSpan.textContent = `>>${quotedMessageId} (Not Found)`;
                             }
 
+                            const updateQuoteStyle = () => {
+                                if (renderedMessageIdsInViewer.has(quotedMessageId)) {
+                                    quoteSpan.style.cursor = "pointer";
+                                    quoteSpan.style.textDecoration = "underline";
+                                } else {
+                                    quoteSpan.style.cursor = "default";
+                                    quoteSpan.style.textDecoration = "none";
+                                }
+                            };
+
+                            quoteSpan.addEventListener("mouseenter", (e) => {
+                                updateQuoteStyle();
+                                if (!quotedMessageObject) return;
+
+                                if (previewHideTimeout) {
+                                    clearTimeout(previewHideTimeout);
+                                    previewHideTimeout = null;
+                                }
+
+                                let previewWin = document.getElementById("otk-message-preview-window");
+                                if (!previewWin) {
+                                    previewWin = document.createElement("div");
+                                    previewWin.id = "otk-message-preview-window";
+                                    previewWin.style.position = "fixed";
+                                    previewWin.style.zIndex = "100002";
+                                    previewWin.style.width = "300px";
+                                    previewWin.innerHTML = `
+                                        <div class="otk-preview-header" style="display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
+                                            <span class="otk-preview-header-title">Message No.</span>
+                                            <span class="otk-preview-close" style="cursor: pointer; font-weight: bold; margin-left: 10px;">✕</span>
+                                        </div>
+                                        <div class="otk-preview-body" style="white-space: pre-wrap; word-break: break-word; box-sizing: border-box;"></div>
+                                        <div class="otk-preview-footer" style="box-sizing: border-box;"></div>
+                                    `;
+                                    document.body.appendChild(previewWin);
+
+                                    previewWin.querySelector(".otk-preview-close").addEventListener("click", () => {
+                                        previewWin.style.display = "none";
+                                    });
+
+                                    previewWin.addEventListener("mouseenter", () => {
+                                        if (previewHideTimeout) {
+                                            clearTimeout(previewHideTimeout);
+                                            previewHideTimeout = null;
+                                        }
+                                    });
+                                    previewWin.addEventListener("mouseleave", () => {
+                                        previewHideTimeout = setTimeout(() => {
+                                            previewWin.style.display = "none";
+                                        }, 400);
+                                    });
+                                }
+
+                                previewWin.querySelector(".otk-preview-header-title").textContent = `Message No. ${quotedMessageId}`;
+                                previewWin.querySelector(".otk-preview-body").textContent = decodeAllHtmlEntities(quotedMessageObject.text || "");
+
+                                const rect = quoteSpan.getBoundingClientRect();
+                                let top = rect.bottom + 5;
+                                let left = rect.left;
+
+                                if (left + 300 > window.innerWidth) {
+                                    left = window.innerWidth - 320;
+                                }
+                                if (top + 200 > window.innerHeight) {
+                                    top = rect.top - 210;
+                                }
+                                if (top < 0) top = 10;
+                                if (left < 0) left = 10;
+
+                                previewWin.style.top = `${top}px`;
+                                previewWin.style.left = `${left}px`;
+                                previewWin.style.display = "block";
+                            });
+
+                            quoteSpan.addEventListener("mouseleave", () => {
+                                previewHideTimeout = setTimeout(() => {
+                                    const previewWin = document.getElementById("otk-message-preview-window");
+                                    if (previewWin) {
+                                        previewWin.style.display = "none";
+                                    }
+                                }, 400);
+                            });
+
                             quoteSpan.addEventListener("click", (e) => {
                                 e.stopPropagation();
                                 e.preventDefault();
-                                triggerQuickReply(quotedMessageId, message.originalThreadId);
+                                if (renderedMessageIdsInViewer.has(quotedMessageId)) {
+                                    const targetElement = document.querySelector(`div[data-message-id="${quotedMessageId}"]`);
+                                    if (targetElement) {
+                                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }
+                                }
                             });
+
+                            updateQuoteStyle();
 
                             textElement.appendChild(quoteSpan);
                         } else {
@@ -9482,6 +9573,15 @@ function createThemeOptionRow(options) {
         qrThemingSection.appendChild(createThemeOptionRow({ labelText: "Text Area Background Colour:", storageKey: 'qrTextareaBgColor', cssVariable: '--otk-qr-textarea-bg-color', defaultValue: '#222222', inputType: 'color', idSuffix: 'qr-textarea-bg' }));
         qrThemingSection.appendChild(createThemeOptionRow({ labelText: "Text Area Font Colour:", storageKey: 'qrTextareaTextColor', cssVariable: '--otk-qr-textarea-text-color', defaultValue: '#eeeeee', inputType: 'color', idSuffix: 'qr-textarea-text' }));
 
+        // --- Message Preview Window Theming Section ---
+        const previewThemingSection = createCollapsibleSubSection('Message Preview Window');
+        previewThemingSection.appendChild(createThemeOptionRow({ labelText: "Header Background Colour:", storageKey: 'previewHeaderBgColor', cssVariable: '--otk-preview-header-bg-color', defaultValue: '#444444', inputType: 'color', idSuffix: 'preview-header-bg' }));
+        previewThemingSection.appendChild(createThemeOptionRow({ labelText: "Header Font Colour:", storageKey: 'previewHeaderTextColor', cssVariable: '--otk-preview-header-text-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'preview-header-text' }));
+        previewThemingSection.appendChild(createThemeOptionRow({ labelText: "Background Colour:", storageKey: 'previewBgColor', cssVariable: '--otk-preview-bg-color', defaultValue: '#333333', inputType: 'color', idSuffix: 'preview-bg' }));
+        previewThemingSection.appendChild(createThemeOptionRow({ labelText: "Border Colour:", storageKey: 'previewBorderColor', cssVariable: '--otk-preview-border-color', defaultValue: '#555555', inputType: 'color', idSuffix: 'preview-border' }));
+        previewThemingSection.appendChild(createThemeOptionRow({ labelText: "Content Background Colour:", storageKey: 'previewContentBgColor', cssVariable: '--otk-preview-content-bg-color', defaultValue: '#222222', inputType: 'color', idSuffix: 'preview-content-bg' }));
+        previewThemingSection.appendChild(createThemeOptionRow({ labelText: "Content Font Colour:", storageKey: 'previewContentTextColor', cssVariable: '--otk-preview-content-text-color', defaultValue: '#eeeeee', inputType: 'color', idSuffix: 'preview-content-text' }));
+
         // --- PiP Mode Section ---
         const pipBgSection = createCollapsibleSubSection('PiP Mode');
         pipBgSection.appendChild(createThemeOptionRow({ labelText: "PiP Mode Background Colour:", storageKey: 'pipBackgroundColor', cssVariable: '--otk-pip-bg-color', defaultValue: '#1a1a1a', inputType: 'color', idSuffix: 'pip-bg' }));
@@ -10371,6 +10471,14 @@ function getAllOptionConfigs() {
                 { storageKey: 'qrTextareaBgColor', cssVariable: '--otk-qr-textarea-bg-color', defaultValue: '#222222', inputType: 'color', idSuffix: 'qr-textarea-bg' },
                 { storageKey: 'qrTextareaTextColor', cssVariable: '--otk-qr-textarea-text-color', defaultValue: '#eeeeee', inputType: 'color', idSuffix: 'qr-textarea-text' },
 
+                // Message Preview Window
+                { storageKey: 'previewHeaderBgColor', cssVariable: '--otk-preview-header-bg-color', defaultValue: '#444444', inputType: 'color', idSuffix: 'preview-header-bg' },
+                { storageKey: 'previewHeaderTextColor', cssVariable: '--otk-preview-header-text-color', defaultValue: '#ffffff', inputType: 'color', idSuffix: 'preview-header-text' },
+                { storageKey: 'previewBgColor', cssVariable: '--otk-preview-bg-color', defaultValue: '#333333', inputType: 'color', idSuffix: 'preview-bg' },
+                { storageKey: 'previewBorderColor', cssVariable: '--otk-preview-border-color', defaultValue: '#555555', inputType: 'color', idSuffix: 'preview-border' },
+                { storageKey: 'previewContentBgColor', cssVariable: '--otk-preview-content-bg-color', defaultValue: '#222222', inputType: 'color', idSuffix: 'preview-content-bg' },
+                { storageKey: 'previewContentTextColor', cssVariable: '--otk-preview-content-text-color', defaultValue: '#eeeeee', inputType: 'color', idSuffix: 'preview-content-text' },
+
                 // Message Header Icon Colors
                 { storageKey: 'blockIconColorOdd', cssVariable: '--otk-block-icon-color-odd', defaultValue: '#999999', inputType: 'color', idSuffix: 'block-icon-odd' },
                 { storageKey: 'blockIconColorEven', cssVariable: '--otk-block-icon-color-even', defaultValue: '#999999', inputType: 'color', idSuffix: 'block-icon-even' },
@@ -10808,6 +10916,14 @@ function setupScrollButtons() {
                 --otk-options-alt-bg-color: #383838;
                 --otk-replies-stat-color: #ff8040;
                 --otk-scroll-top-bottom-icon-color: #FFFFFF;
+
+                /* Message Preview Window */
+                --otk-preview-header-bg-color: #444444;
+                --otk-preview-header-text-color: #ffffff;
+                --otk-preview-bg-color: #333333;
+                --otk-preview-border-color: #555555;
+                --otk-preview-content-bg-color: #222222;
+                --otk-preview-content-text-color: #eeeeee;
             }
 
             #otk-messages-container {
@@ -10846,6 +10962,37 @@ function setupScrollButtons() {
 
             #otk-messages-container::-webkit-scrollbar-thumb:hover {
                 background-color: rgba(155, 155, 155, 0.8) !important;
+            }
+
+            #otk-message-preview-window {
+                background-color: var(--otk-preview-bg-color) !important;
+                border: 1px solid var(--otk-preview-border-color) !important;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+                border-radius: 2px;
+                box-sizing: border-box;
+            }
+            #otk-message-preview-window .otk-preview-header {
+                background-color: var(--otk-preview-header-bg-color) !important;
+                color: var(--otk-preview-header-text-color) !important;
+                font-family: Verdana, sans-serif;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 4px 8px;
+            }
+            #otk-message-preview-window .otk-preview-body {
+                background-color: var(--otk-preview-content-bg-color) !important;
+                color: var(--otk-preview-content-text-color) !important;
+                font-family: Verdana, sans-serif;
+                font-size: 13px;
+                padding: 10px;
+                overflow-y: auto;
+                max-height: 250px;
+            }
+            #otk-message-preview-window .otk-preview-footer {
+                background-color: var(--otk-preview-bg-color) !important;
+                height: 20px;
+                border-top: 1px solid var(--otk-preview-border-color);
+                box-sizing: border-box;
             }
 
             /* Placeholder styling */
