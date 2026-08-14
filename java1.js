@@ -382,15 +382,12 @@ document.addEventListener("visibilitychange", () => {
             newPrefix = `(+${replyCount}) `;
         }
 
-        // Robust base title sync
-        const currentTitle = document.title;
-        if (currentTitlePrefix && currentTitle.startsWith(currentTitlePrefix)) {
-            const base = currentTitle.substring(currentTitlePrefix.length);
-            if (base && base !== originalTitle) {
-                originalTitle = base;
-            }
-        } else if (currentTitle !== originalTitle && !currentTitle.startsWith('(') && !currentTitle.startsWith('[Suspended]')) {
-             originalTitle = currentTitle;
+        // Highly robust base title sync using regex stripping
+        let base = document.title;
+        base = base.replace(/^\(\+[^)]+\)\s*/, '');
+        base = base.replace(/^\[Suspended\]\s*/, '');
+        if (base && base !== originalTitle) {
+            originalTitle = base;
         }
 
         currentTitlePrefix = newPrefix;
@@ -403,16 +400,18 @@ document.addEventListener("visibilitychange", () => {
         const themeSettings = JSON.parse(localStorage.getItem(THEME_SETTINGS_KEY)) || {};
         const isFlashEnabled = themeSettings.tabTitleStatsAnimation === 'Flash';
 
+        const displayTitle = isSuspended ? "[Suspended] " + originalTitle : originalTitle;
+
         if (isFlashEnabled && newPrefix && document.hidden) {
             let showingPrefix = true;
-            document.title = newPrefix + originalTitle;
+            document.title = newPrefix + displayTitle;
             const speed = parseFloat(themeSettings.tabTitleStatsAnimationSpeed) || 1.0;
             titleFlashingInterval = setInterval(() => {
                 showingPrefix = !showingPrefix;
-                document.title = showingPrefix ? newPrefix + originalTitle : originalTitle;
+                document.title = showingPrefix ? newPrefix + displayTitle : displayTitle;
             }, 1000 / speed);
         } else {
-            document.title = newPrefix + originalTitle;
+            document.title = newPrefix + displayTitle;
         }
     }
     let cityData = [];
@@ -1761,7 +1760,14 @@ function createTweetEmbedElement(tweetId) {
 
     function loadUserPostIds() {
         try {
-            const postHistory = JSON.parse(localStorage.getItem('postHistory') || '[]');
+            let rawHistory = null;
+            if (typeof unsafeWindow !== 'undefined' && unsafeWindow.localStorage) {
+                rawHistory = unsafeWindow.localStorage.getItem('postHistory');
+            }
+            if (!rawHistory) {
+                rawHistory = localStorage.getItem('postHistory');
+            }
+            const postHistory = JSON.parse(rawHistory || '[]');
             userPostIds.clear(); // Clear before re-populating
             if (Array.isArray(postHistory)) {
                 postHistory.forEach(post => {
@@ -3034,7 +3040,10 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
             return;
         }
 
-        if (newMessages.length === 0) {
+        const savedScrollTop = messagesContainer.scrollTop;
+        const wasManualRefresh = isManualRefreshInProgress;
+
+        if (newMessages.length === 0 && !wasManualRefresh) {
             consoleLog("[appendNewMessagesToViewer] No new messages to append.");
             hideLoadingScreen();
             return;
@@ -3149,7 +3158,10 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
         Promise.all(mediaLoadPromises).then(async () => {
             hideLoadingScreen();
 
-            if (anchorInfo && anchorInfo.element) {
+            if (wasManualRefresh) {
+                messagesContainer.scrollTop = savedScrollTop;
+                consoleLog(`[ScrollRestore] Manual refresh scroll position restored to: ${savedScrollTop}`);
+            } else if (anchorInfo && anchorInfo.element) {
                 const newTop = anchorInfo.element.getBoundingClientRect().top;
                 const topDiff = newTop - anchorInfo.top;
                 messagesContainer.scrollTop += Math.round(topDiff); // Round to prevent minor jiggles
@@ -3946,6 +3958,10 @@ function _populateMessageBody(message, mediaLoadPromises, uniqueImageViewerHashe
                             quoteSpan.style.textDecoration = "underline";
                             quoteSpan.style.cursor = "pointer";
                             quoteSpan.style.fontWeight = "bold";
+                            quoteSpan.style.display = "inline-block";
+                            quoteSpan.style.padding = "0px";
+                            quoteSpan.style.margin = "0px";
+                            quoteSpan.style.lineHeight = "normal";
 
                             if (quotedMessageObject) {
                                 quoteSpan.textContent = `>>${quotedMessageId}`;
@@ -3981,8 +3997,11 @@ function _populateMessageBody(message, mediaLoadPromises, uniqueImageViewerHashe
                                     previewWin.style.width = "300px";
                                     previewWin.innerHTML = `
                                         <div class="otk-preview-header" style="display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;">
-                                            <span class="otk-preview-header-title">Message No.</span>
-                                            <span class="otk-preview-close" style="cursor: pointer; font-weight: bold; margin-left: 10px;">✕</span>
+                                            <span class="otk-preview-header-title" style="cursor: pointer; text-decoration: underline;">Message No.</span>
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span class="otk-preview-scroll-to" style="cursor: pointer; font-size: 14px;">👁️</span>
+                                                <span class="otk-preview-close" style="cursor: pointer; font-weight: bold; margin-left: 10px;">✕</span>
+                                            </div>
                                         </div>
                                         <div class="otk-preview-body" style="white-space: pre-wrap; word-break: break-word; box-sizing: border-box;"></div>
                                         <div class="otk-preview-footer" style="box-sizing: border-box;"></div>
@@ -4002,11 +4021,41 @@ function _populateMessageBody(message, mediaLoadPromises, uniqueImageViewerHashe
                                     previewWin.addEventListener("mouseleave", () => {
                                         previewHideTimeout = setTimeout(() => {
                                             previewWin.style.display = "none";
-                                        }, 400);
+                                        }, 150);
                                     });
                                 }
 
-                                previewWin.querySelector(".otk-preview-header-title").textContent = `Message No. ${quotedMessageId}`;
+                                const headerTitle = previewWin.querySelector(".otk-preview-header-title");
+                                headerTitle.textContent = `Message No. ${quotedMessageId}`;
+                                headerTitle.title = "Click to reply to this message";
+                                headerTitle.onclick = (evt) => {
+                                    evt.stopPropagation();
+                                    evt.preventDefault();
+                                    triggerQuickReply(quotedMessageId, message.originalThreadId);
+                                    previewWin.style.display = "none";
+                                };
+
+                                const scrollToBtn = previewWin.querySelector(".otk-preview-scroll-to");
+                                if (renderedMessageIdsInViewer.has(quotedMessageId)) {
+                                    scrollToBtn.style.opacity = "1";
+                                    scrollToBtn.style.cursor = "pointer";
+                                    scrollToBtn.title = "Scroll to this message in viewer";
+                                    scrollToBtn.onclick = (evt) => {
+                                        evt.stopPropagation();
+                                        evt.preventDefault();
+                                        const targetElement = document.querySelector(`div[data-message-id="${quotedMessageId}"]`);
+                                        if (targetElement) {
+                                            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }
+                                        previewWin.style.display = "none";
+                                    };
+                                } else {
+                                    scrollToBtn.style.opacity = "0.4";
+                                    scrollToBtn.style.cursor = "not-allowed";
+                                    scrollToBtn.title = "Message is not currently loaded in the viewer";
+                                    scrollToBtn.onclick = null;
+                                }
+
                                 previewWin.querySelector(".otk-preview-body").textContent = decodeAllHtmlEntities(quotedMessageObject.text || "");
 
                                 const rect = quoteSpan.getBoundingClientRect();
@@ -4033,7 +4082,7 @@ function _populateMessageBody(message, mediaLoadPromises, uniqueImageViewerHashe
                                     if (previewWin) {
                                         previewWin.style.display = "none";
                                     }
-                                }, 400);
+                                }, 150);
                             });
 
                             quoteSpan.addEventListener("click", (e) => {
@@ -6716,6 +6765,7 @@ const scrollButtonContainer = document.getElementById('otk-scroll-button-contain
             try {
                 await refreshThreadsAndMessages();
                 consoleLog('[GUI] Data refresh complete.');
+                updateTabTitle();
             } catch (error) {
                 consoleError('[GUI] Error during data refresh:', error);
             } finally {
