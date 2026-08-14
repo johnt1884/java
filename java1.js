@@ -2759,6 +2759,11 @@ function renderThreadList() {
         renderedFullSizeImageHashes.clear(); // Clear for new viewer session
         consoleLog("[renderMessagesInViewer] Cleared renderedMessageIdsInViewer, blob caches, unique image hashes, top-level video tracking sets, and renderedFullSizeImageHashes for full rebuild.");
 
+        const existingContainer = document.getElementById('otk-messages-container');
+        if (existingContainer && existingContainer.scrollTop > 0) {
+            lastViewerScrollTop = existingContainer.scrollTop;
+        }
+
         otkViewer.innerHTML = ''; // Clear previous content
 
         let allMessages = getAllMessagesSorted();
@@ -2999,7 +3004,7 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
                 }
 
                 if (!scrolledToPin) {
-                    if (isToggleOpen && lastViewerScrollTop > 0) {
+                    if ((isToggleOpen || isManualRefreshInProgress) && lastViewerScrollTop > 0) {
                         messagesContainer.scrollTop = lastViewerScrollTop;
                         consoleLog(`[ViewerScroll] No pin found. Restored scroll position to: ${lastViewerScrollTop}`);
                     } else {
