@@ -1194,7 +1194,7 @@ function createTweetEmbedElement(tweetId) {
             color: var(--otk-gui-text-color); /* This is now for general GUI text */
             font-family: Verdana, sans-serif;
             font-size: 14px;
-            padding: 5px 28px;
+            padding: 5px 28px 5px 23px;
             box-sizing: border-box;
             display: flex;
             align-items: stretch;
@@ -1427,7 +1427,7 @@ function createTweetEmbedElement(tweetId) {
                 color: var(--otk-gui-text-color); /* This is now for general GUI text */
                 font-family: Verdana, sans-serif;
                 font-size: 14px;
-                padding: 5px 28px;
+                padding: 5px 28px 5px 23px;
                 box-sizing: border-box;
                 display: flex;
                 align-items: stretch;
@@ -2272,7 +2272,7 @@ function createThreadListItemElement(thread, isForTooltip = false) {
     threadItemDiv.style.cssText = `
         display: flex;
         align-items: center;
-        padding: 4px 4px 4px 5.5px;
+        padding: 4px 4px 4px 0px;
         border-radius: 3px;
         height: 28px; /* Fixed height for animation calculations */
         box-sizing: border-box;
@@ -3045,7 +3045,7 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
             return;
         }
 
-        const savedScrollTop = messagesContainer.scrollTop;
+        const savedScrollTop = lastViewerScrollTop > 0 ? lastViewerScrollTop : messagesContainer.scrollTop;
         const wasManualRefresh = isManualRefreshInProgress;
 
         if (newMessages.length === 0 && !wasManualRefresh) {
@@ -5818,6 +5818,10 @@ async function backgroundRefreshThreadsAndMessages(options = {}) { // Added opti
     }
 
     async function refreshThreadsAndMessages(options = {}) { // Manual Refresh / Called by Clear
+        const mc = document.getElementById('otk-messages-container');
+        if (mc) {
+            lastViewerScrollTop = mc.scrollTop;
+        }
         loadUserPostIds();
         messagesByThreadId = await loadMessagesFromDB(); // Ensure in-memory is synced with DB
         const { skipViewerUpdate = false, isChildCall = false } = options; // Destructure with default
@@ -6765,6 +6769,11 @@ const scrollButtonContainer = document.getElementById('otk-scroll-button-contain
                 return; // Ignore click if a refresh is already happening
             }
             consoleLog('[GUI] "Refresh Data" button clicked.');
+            const mc = document.getElementById('otk-messages-container');
+            if (mc) {
+                lastViewerScrollTop = mc.scrollTop;
+                consoleLog('[GUI] Captured scroll position before refresh:', lastViewerScrollTop);
+            }
             // isManualRefreshInProgress is set to true at the start of refreshThreadsAndMessages
             // and false in its finally block. This prevents the race condition without disabling the button.
             try {
