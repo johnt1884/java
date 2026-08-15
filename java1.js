@@ -2958,6 +2958,9 @@ function renderThreadList() {
             }
         }
         otkViewer.appendChild(messagesContainer);
+        if ((isToggleOpen || isManualRefreshInProgress) && lastViewerScrollTop > 0) {
+            messagesContainer.scrollTop = lastViewerScrollTop;
+        }
 
 // After processing all messages, update global viewer counts
 consoleLog(`[StatsDebug] Unique image hashes for viewer: ${uniqueImageViewerHashes.size}`, uniqueImageViewerHashes);
@@ -2980,7 +2983,7 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
             const storedPinnedInstanceId = localStorage.getItem(PINNED_MESSAGE_ID_KEY);
             consoleLog("[ViewerScroll] Found pinned message ID in localStorage:", storedPinnedInstanceId);
 
-            setTimeout(() => {
+            const updateScrollPos = () => {
                 let scrolledToPin = false;
                 if (storedPinnedInstanceId) {
                     const pinnedElement = document.getElementById(storedPinnedInstanceId);
@@ -3018,7 +3021,8 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
                     setTimeout(hideLoadingScreen, 200);
                 }
                 applyThemeSettings({ forceRerender: false });
-            }, 500);
+            };
+            updateScrollPos();
         }).catch(err => {
             consoleError("Error occurred during media loading promises:", err);
             if (showLoading) {
@@ -3138,6 +3142,9 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
         }
 
         messagesContainer.appendChild(newContentDiv);
+        if (wasManualRefresh) {
+            messagesContainer.scrollTop = savedScrollTop;
+        }
 
         const messageElementsAfter = messagesContainer.querySelectorAll('.otk-message-container-main');
         consoleLog(`[AppendLimit] After append: DOM has ${messageElementsAfter.length} messages. renderedMessageIdsInViewer has ${renderedMessageIdsInViewer.size} IDs.`);
