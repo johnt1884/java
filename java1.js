@@ -5454,7 +5454,10 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
                     if (dbResult) {
                         message.attachment.localStoreId = filehash_db_key;
                     } else {
-                        mediaDownloadQueue.push({ post, message, filehash_db_key, board: opPost.board || 'b' });
+                        const isVideo = ['.webm', '.mp4'].includes(post.ext.toLowerCase());
+                        if (!isVideo && mediaDownloadQueue.length < 15) {
+                            mediaDownloadQueue.push({ post, message, filehash_db_key, board: opPost.board || 'b' });
+                        }
                     }
                 }
             }
@@ -8523,7 +8526,7 @@ function createThemeOptionRow(options) {
 
         const mainOptionsPanel = document.createElement('div');
         mainOptionsPanel.id = 'otk-main-options-panel';
-        mainOptionsPanel.style.cssText = 'padding: 15px 0; display: block;';
+        mainOptionsPanel.style.cssText = 'padding: 15px 0 60px 0; display: block; position: relative; min-height: 100%; box-sizing: border-box;';
 
         const threadTitleColorsPanel = document.createElement('div');
         threadTitleColorsPanel.id = 'otk-thread-title-colors-panel';
@@ -9797,20 +9800,24 @@ function createThemeOptionRow(options) {
 
         const resetAllColorsRow = document.createElement('div');
         resetAllColorsRow.classList.add('otk-option-row');
-        resetAllColorsRow.style.gridTemplateColumns = '1fr';
-        resetAllColorsRow.style.position = 'sticky';
-        resetAllColorsRow.style.bottom = '0';
-        resetAllColorsRow.style.backgroundColor = 'var(--otk-options-main-bg-color)';
-        resetAllColorsRow.style.zIndex = '10';
-        resetAllColorsRow.style.borderTop = '1px solid #444';
-        resetAllColorsRow.style.paddingTop = '10px';
-        resetAllColorsRow.style.paddingBottom = '10px';
+        resetAllColorsRow.style.cssText = `
+            grid-template-columns: 1fr;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            background-color: var(--otk-options-main-bg-color);
+            border-top: 1px solid #444;
+            padding: 10px 30px;
+            box-sizing: border-box;
+        `;
 
         const resetAllColorsButton = createTrackerButton("Default Settings");
         resetAllColorsButton.id = 'otk-default-settings-btn';
         resetAllColorsButton.style.cssText += "padding: 2px 8px; font-size: 11px; height: 25px; box-sizing: border-box; width: 100%;";
         resetAllColorsRow.appendChild(resetAllColorsButton);
-        themeOptionsContainer.appendChild(resetAllColorsRow);
+        mainOptionsPanel.appendChild(resetAllColorsRow);
 
 
         function resetAllMainOptionsToDefault(promptUser = true) {
