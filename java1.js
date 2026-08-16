@@ -1194,7 +1194,7 @@ function createTweetEmbedElement(tweetId) {
             color: var(--otk-gui-text-color); /* This is now for general GUI text */
             font-family: Verdana, sans-serif;
             font-size: 14px;
-            padding: 5px 28px 5px 23px;
+            padding: 5px 28px 5px 34px;
             box-sizing: border-box;
             display: flex;
             align-items: stretch;
@@ -1427,7 +1427,7 @@ function createTweetEmbedElement(tweetId) {
                 color: var(--otk-gui-text-color); /* This is now for general GUI text */
                 font-family: Verdana, sans-serif;
                 font-size: 14px;
-                padding: 5px 28px 5px 23px;
+                padding: 5px 28px 5px 34px;
                 box-sizing: border-box;
                 display: flex;
                 align-items: stretch;
@@ -2302,6 +2302,7 @@ function createThreadListItemElement(thread, isForTooltip = false) {
     titleLink.title = thread.title;
     titleLink.style.cssText = `
         color: var(--otk-gui-threadlist-title-color);
+        font-family: var(--otk-gui-threadlist-title-font, Verdana, sans-serif);
         text-decoration: none;
         font-weight: bold;
         font-size: 12px;
@@ -2317,6 +2318,7 @@ function createThreadListItemElement(thread, isForTooltip = false) {
     const bracketColor = themeSettings.otkThreadTimeBracketColor || 'var(--otk-gui-threadlist-time-color)';
     const timestampSpan = document.createElement('span');
     timestampSpan.style.marginLeft = '5px';
+    timestampSpan.style.fontFamily = 'var(--otk-gui-threadlist-time-font, Verdana, sans-serif)';
     if (bracketStyle !== 'none') {
         const openBracket = document.createElement('span');
         openBracket.textContent = bracketStyle[0];
@@ -9262,6 +9264,10 @@ function createThemeOptionRow(options) {
         const guiSectionContent = createCollapsibleSubSection('GUI', { defaultCollapsed: false });
         guiSectionContent.appendChild(createThemeOptionRow({ labelText: "General GUI Text Colour:", storageKey: 'guiTextColor', cssVariable: '--otk-gui-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'gui-text' }));
         guiSectionContent.appendChild(createThemeOptionRow({ labelText: "Title Font Colour:", storageKey: 'titleTextColor', cssVariable: '--otk-title-text-color', defaultValue: '#e6e6e6', inputType: 'color', idSuffix: 'title-text' }));
+        guiSectionContent.appendChild(createThemeOptionRow({ labelText: "Title Font Family:", storageKey: 'titleTextFont', cssVariable: '--otk-title-text-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'title-text-font' }));
+        guiSectionContent.appendChild(createThemeOptionRow({ labelText: "Thread Titles Font Family:", storageKey: 'guiThreadListTitleFont', cssVariable: '--otk-gui-threadlist-title-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'threadlist-title-font' }));
+        guiSectionContent.appendChild(createThemeOptionRow({ labelText: "Thread Times Font Family:", storageKey: 'guiThreadListTimeFont', cssVariable: '--otk-gui-threadlist-time-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'threadlist-time-font' }));
+        guiSectionContent.appendChild(createThemeOptionRow({ labelText: "Stats Font Family:", storageKey: 'actualStatsTextFont', cssVariable: '--otk-stats-text-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'actual-stats-text-font' }));
         guiSectionContent.appendChild(createThemeOptionRow({ labelText: "Background Colour:", storageKey: 'guiBgColor', cssVariable: '--otk-gui-bg-color', defaultValue: '#181818', inputType: 'color', idSuffix: 'gui-bg' }));
 
         guiSectionContent.appendChild(createImagePickerRow({
@@ -9565,7 +9571,9 @@ function createThemeOptionRow(options) {
 
         // --- Messages Section ---
         const evenMessagesSection = createCollapsibleSubSection('Messages');
+        evenMessagesSection.appendChild(createThemeOptionRow({ labelText: "Header Font Family:", storageKey: 'msgDepthOddHeaderFont', cssVariable: '--otk-msg-depth-odd-header-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'msg-depth-odd-header-font', requiresRerender: true }));
         evenMessagesSection.appendChild(createThemeOptionRow({ labelText: "Header Font Colour:", storageKey: 'msgDepthOddHeaderTextColor', cssVariable: '--otk-msg-depth-odd-header-text-color', defaultValue: '#555555', inputType: 'color', idSuffix: 'msg-depth-odd-header-text', requiresRerender: true }));
+        evenMessagesSection.appendChild(createThemeOptionRow({ labelText: "Content Font Family:", storageKey: 'msgDepthOddContentFont', cssVariable: '--otk-msg-depth-odd-content-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'msg-depth-odd-content-font', requiresRerender: true }));
         evenMessagesSection.appendChild(createThemeOptionRow({ labelText: "Header Underline Colour:", storageKey: 'viewerHeaderBorderColorOdd', cssVariable: '--otk-viewer-header-border-color-odd', defaultValue: '#000000', inputType: 'color', idSuffix: 'viewer-header-border-odd', requiresRerender: true }));
         evenMessagesSection.appendChild(createThemeOptionRow({ labelText: "Content Font Colour:", storageKey: 'msgDepthOddTextColor', cssVariable: '--otk-msg-depth-odd-text-color', defaultValue: '#333333', inputType: 'color', idSuffix: 'msg-depth-odd-text', requiresRerender: true }));
         evenMessagesSection.appendChild(createThemeOptionRow({ labelText: "Font Size (px):", storageKey: 'msgDepthOddContentFontSize', cssVariable: '--otk-msg-depth-odd-content-font-size', defaultValue: '16px', inputType: 'number', unit: 'px', min: 8, max: 24, idSuffix: 'msg-depth-odd-content-fontsize', requiresRerender: true }));
@@ -9582,7 +9590,9 @@ function createThemeOptionRow(options) {
 
         // --- Messages (Quoted) Section ---
         const oddMessagesSection = createCollapsibleSubSection('Messages (Quoted)');
+        oddMessagesSection.appendChild(createThemeOptionRow({ labelText: "Header Font Family:", storageKey: 'msgDepthEvenHeaderFont', cssVariable: '--otk-msg-depth-even-header-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'msg-depth-even-header-font', requiresRerender: true }));
         oddMessagesSection.appendChild(createThemeOptionRow({ labelText: "Header Font Colour:", storageKey: 'msgDepthEvenHeaderTextColor', cssVariable: '--otk-msg-depth-even-header-text-color', defaultValue: '#555555', inputType: 'color', idSuffix: 'msg-depth-even-header-text', requiresRerender: true }));
+        oddMessagesSection.appendChild(createThemeOptionRow({ labelText: "Content Font Family:", storageKey: 'msgDepthEvenContentFont', cssVariable: '--otk-msg-depth-even-content-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'msg-depth-even-content-font', requiresRerender: true }));
         oddMessagesSection.appendChild(createThemeOptionRow({ labelText: "Header Underline Colour:", storageKey: 'viewerHeaderBorderColorEven', cssVariable: '--otk-viewer-header-border-color-even', defaultValue: '#777777', inputType: 'color', idSuffix: 'viewer-header-border-even', requiresRerender: true }));
         oddMessagesSection.appendChild(createThemeOptionRow({ labelText: "Content Font Colour:", storageKey: 'msgDepthEvenTextColor', cssVariable: '--otk-msg-depth-even-text-color', defaultValue: '#333333', inputType: 'color', idSuffix: 'msg-depth-even-text', requiresRerender: true }));
         oddMessagesSection.appendChild(createThemeOptionRow({ labelText: "Font Size (px):", storageKey: 'msgDepthEvenContentFontSize', cssVariable: '--otk-msg-depth-even-content-font-size', defaultValue: '16px', inputType: 'number', unit: 'px', min: 8, max: 24, idSuffix: 'msg-depth-even-content-fontsize', requiresRerender: true }));
@@ -9788,8 +9798,13 @@ function createThemeOptionRow(options) {
         const resetAllColorsRow = document.createElement('div');
         resetAllColorsRow.classList.add('otk-option-row');
         resetAllColorsRow.style.gridTemplateColumns = '1fr';
-        resetAllColorsRow.style.marginTop = '20px';
-        resetAllColorsRow.style.paddingTop = '15px'; // Add padding to the top of the row
+        resetAllColorsRow.style.position = 'sticky';
+        resetAllColorsRow.style.bottom = '0';
+        resetAllColorsRow.style.backgroundColor = 'var(--otk-options-main-bg-color)';
+        resetAllColorsRow.style.zIndex = '10';
+        resetAllColorsRow.style.borderTop = '1px solid #444';
+        resetAllColorsRow.style.paddingTop = '10px';
+        resetAllColorsRow.style.paddingBottom = '10px';
 
         const resetAllColorsButton = createTrackerButton("Default Settings");
         resetAllColorsButton.id = 'otk-default-settings-btn';
@@ -10536,7 +10551,17 @@ function getAllOptionConfigs() {
                 { storageKey: 'otkQuotedHeaderSpacing', defaultValue: '1px', inputType: 'number', unit: 'px', min: 0, max: 100, idSuffix: 'quoted-header-spacing' },
                 { storageKey: 'otkQuotedDividerSpacing', defaultValue: '5px', inputType: 'number', unit: 'px', min: 0, max: 100, idSuffix: 'quoted-divider-spacing' },
                 { storageKey: 'otkQuotedMessageDividerColor', defaultValue: '#ff8040', inputType: 'color', idSuffix: 'quoted-message-divider-color' },
-                { storageKey: 'otkQuotedMessageDividerStyle', defaultValue: 'dashed', inputType: 'text', idSuffix: 'quoted-message-divider-style' }
+                { storageKey: 'otkQuotedMessageDividerStyle', defaultValue: 'dashed', inputType: 'text', idSuffix: 'quoted-message-divider-style' },
+
+                // Font Family Options
+                { storageKey: 'guiThreadListTitleFont', cssVariable: '--otk-gui-threadlist-title-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'threadlist-title-font' },
+                { storageKey: 'guiThreadListTimeFont', cssVariable: '--otk-gui-threadlist-time-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'threadlist-time-font' },
+                { storageKey: 'titleTextFont', cssVariable: '--otk-title-text-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'title-text-font' },
+                { storageKey: 'actualStatsTextFont', cssVariable: '--otk-stats-text-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'actual-stats-text-font' },
+                { storageKey: 'msgDepthOddHeaderFont', cssVariable: '--otk-msg-depth-odd-header-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'msg-depth-odd-header-font', requiresRerender: true },
+                { storageKey: 'msgDepthOddContentFont', cssVariable: '--otk-msg-depth-odd-content-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'msg-depth-odd-content-font', requiresRerender: true },
+                { storageKey: 'msgDepthEvenHeaderFont', cssVariable: '--otk-msg-depth-even-header-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'msg-depth-even-header-font', requiresRerender: true },
+                { storageKey: 'msgDepthEvenContentFont', cssVariable: '--otk-msg-depth-even-content-font', defaultValue: 'Verdana, sans-serif', inputType: 'text', idSuffix: 'msg-depth-even-content-font', requiresRerender: true }
             ];
 }
 
@@ -10954,6 +10979,16 @@ function setupScrollButtons() {
                 --otk-replies-stat-color: #ff8040;
                 --otk-scroll-top-bottom-icon-color: #FFFFFF;
 
+                /* Font Family Variables */
+                --otk-gui-threadlist-title-font: Verdana, sans-serif;
+                --otk-gui-threadlist-time-font: Verdana, sans-serif;
+                --otk-title-text-font: Verdana, sans-serif;
+                --otk-stats-text-font: Verdana, sans-serif;
+                --otk-msg-depth-odd-header-font: Verdana, sans-serif;
+                --otk-msg-depth-odd-content-font: Verdana, sans-serif;
+                --otk-msg-depth-even-header-font: Verdana, sans-serif;
+                --otk-msg-depth-even-content-font: Verdana, sans-serif;
+
                 /* Message Preview Window */
                 --otk-preview-header-bg-color: #444444;
                 --otk-preview-header-text-color: #ffffff;
@@ -11035,6 +11070,25 @@ function setupScrollButtons() {
             /* Placeholder styling */
             #otk-custom-theme-name-input::placeholder {
                 text-align: center;
+            }
+
+            #otk-thread-title-display {
+                font-family: var(--otk-title-text-font, Verdana, sans-serif) !important;
+            }
+            #otk-stats-display {
+                font-family: var(--otk-stats-text-font, Verdana, sans-serif) !important;
+            }
+            .otk-message-depth-odd {
+                font-family: var(--otk-msg-depth-odd-content-font, Verdana, sans-serif) !important;
+            }
+            .otk-message-depth-odd > div:first-child {
+                font-family: var(--otk-msg-depth-odd-header-font, Verdana, sans-serif) !important;
+            }
+            .otk-message-depth-even {
+                font-family: var(--otk-msg-depth-even-content-font, Verdana, sans-serif) !important;
+            }
+            .otk-message-depth-even > div:first-child {
+                font-family: var(--otk-msg-depth-even-header-font, Verdana, sans-serif) !important;
             }
 
             /* GUI Button States */
