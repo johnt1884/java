@@ -2759,11 +2759,6 @@ function renderThreadList() {
         renderedFullSizeImageHashes.clear(); // Clear for new viewer session
         consoleLog("[renderMessagesInViewer] Cleared renderedMessageIdsInViewer, blob caches, unique image hashes, top-level video tracking sets, and renderedFullSizeImageHashes for full rebuild.");
 
-        const existingContainer = document.getElementById('otk-messages-container');
-        if (existingContainer && existingContainer.scrollTop > 0) {
-            lastViewerScrollTop = existingContainer.scrollTop;
-        }
-
         otkViewer.innerHTML = ''; // Clear previous content
 
         let allMessages = getAllMessagesSorted();
@@ -2958,9 +2953,6 @@ function renderThreadList() {
             }
         }
         otkViewer.appendChild(messagesContainer);
-        if ((isToggleOpen || isManualRefreshInProgress) && lastViewerScrollTop > 0) {
-            messagesContainer.scrollTop = lastViewerScrollTop;
-        }
 
 // After processing all messages, update global viewer counts
 consoleLog(`[StatsDebug] Unique image hashes for viewer: ${uniqueImageViewerHashes.size}`, uniqueImageViewerHashes);
@@ -2983,7 +2975,7 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
             const storedPinnedInstanceId = localStorage.getItem(PINNED_MESSAGE_ID_KEY);
             consoleLog("[ViewerScroll] Found pinned message ID in localStorage:", storedPinnedInstanceId);
 
-            const updateScrollPos = () => {
+            setTimeout(() => {
                 let scrolledToPin = false;
                 if (storedPinnedInstanceId) {
                     const pinnedElement = document.getElementById(storedPinnedInstanceId);
@@ -3007,7 +2999,7 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
                 }
 
                 if (!scrolledToPin) {
-                    if ((isToggleOpen || isManualRefreshInProgress) && lastViewerScrollTop > 0) {
+                    if (isToggleOpen && lastViewerScrollTop > 0) {
                         messagesContainer.scrollTop = lastViewerScrollTop;
                         consoleLog(`[ViewerScroll] No pin found. Restored scroll position to: ${lastViewerScrollTop}`);
                     } else {
@@ -3021,8 +3013,7 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
                     setTimeout(hideLoadingScreen, 200);
                 }
                 applyThemeSettings({ forceRerender: false });
-            };
-            updateScrollPos();
+            }, 500);
         }).catch(err => {
             consoleError("Error occurred during media loading promises:", err);
             if (showLoading) {
@@ -3049,10 +3040,7 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
             return;
         }
 
-        const savedScrollTop = lastViewerScrollTop > 0 ? lastViewerScrollTop : messagesContainer.scrollTop;
-        const wasManualRefresh = isManualRefreshInProgress;
-
-        if (newMessages.length === 0 && !wasManualRefresh) {
+        if (newMessages.length === 0) {
             consoleLog("[appendNewMessagesToViewer] No new messages to append.");
             hideLoadingScreen();
             return;
@@ -3063,31 +3051,26 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
 
         // --- Scroll Anchoring Logic ---
         let anchorInfo = null;
-        const isScrolledToBottom = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 5;
-        consoleLog(`[ScrollRestore] User is at bottom: ${isScrolledToBottom}`);
+        const messageElements = messagesContainer.querySelectorAll('.otk-message-container-main');
+        const messageLimitEnabled = (localStorage.getItem('otkMessageLimitEnabled') !== 'false');
+        const messageLimitValue = parseInt(localStorage.getItem('otkMessageLimitValue') || '500', 10);
+        const potentialPruneCount = Math.max(0, messageElements.length + newMessages.length - messageLimitValue);
 
-        if (!isScrolledToBottom) {
-            const messageElements = messagesContainer.querySelectorAll('.otk-message-container-main');
-            const messageLimitEnabled = (localStorage.getItem('otkMessageLimitEnabled') !== 'false');
-            const messageLimitValue = parseInt(localStorage.getItem('otkMessageLimitValue') || '500', 10);
-            const potentialPruneCount = Math.max(0, messageElements.length + newMessages.length - messageLimitValue);
+        for (let i = 0; i < messageElements.length; i++) {
+            const element = messageElements[i];
+            const rect = element.getBoundingClientRect();
+            const containerRect = messagesContainer.getBoundingClientRect();
 
-            for (let i = 0; i < messageElements.length; i++) {
-                const element = messageElements[i];
-                const rect = element.getBoundingClientRect();
-                const containerRect = messagesContainer.getBoundingClientRect();
-
-                // Check if the element is within the visible portion of the container
-                if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
-                    if (i >= potentialPruneCount) {
-                        anchorInfo = {
-                            element: element,
-                            id: element.dataset.messageId,
-                            top: element.getBoundingClientRect().top
-                        };
-                        consoleLog(`[ScrollRestore] Found anchor message: ID=${anchorInfo.id}, Top=${anchorInfo.top}`);
-                        break; // Found our anchor
-                    }
+            // Check if the element is within the visible portion of the container
+            if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
+                if (i >= potentialPruneCount) {
+                    anchorInfo = {
+                        element: element,
+                        id: element.dataset.messageId,
+                        top: element.getBoundingClientRect().top
+                    };
+                    consoleLog(`[ScrollRestore] Found anchor message: ID=${anchorInfo.id}, Top=${anchorInfo.top}`);
+                    break; // Found our anchor
                 }
             }
         }
@@ -3128,8 +3111,6 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
         }
 
         const mediaLoadPromises = [];
-        const messageLimitEnabled = themeSettings.otkMessageLimitEnabled !== false;
-        const messageLimitValue = parseInt(themeSettings.otkMessageLimitValue || '500', 10);
 
         for (const message of newMessages) {
             const boardForLink = message.board || 'b';
@@ -3142,9 +3123,6 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
         }
 
         messagesContainer.appendChild(newContentDiv);
-        if (wasManualRefresh) {
-            messagesContainer.scrollTop = savedScrollTop;
-        }
 
         const messageElementsAfter = messagesContainer.querySelectorAll('.otk-message-container-main');
         consoleLog(`[AppendLimit] After append: DOM has ${messageElementsAfter.length} messages. renderedMessageIdsInViewer has ${renderedMessageIdsInViewer.size} IDs.`);
@@ -3170,10 +3148,7 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
         Promise.all(mediaLoadPromises).then(async () => {
             hideLoadingScreen();
 
-            if (wasManualRefresh) {
-                messagesContainer.scrollTop = savedScrollTop;
-                consoleLog(`[ScrollRestore] Manual refresh scroll position restored to: ${savedScrollTop}`);
-            } else if (anchorInfo && anchorInfo.element) {
+            if (anchorInfo && anchorInfo.element) {
                 const newTop = anchorInfo.element.getBoundingClientRect().top;
                 const topDiff = newTop - anchorInfo.top;
                 messagesContainer.scrollTop += Math.round(topDiff); // Round to prevent minor jiggles
@@ -5825,10 +5800,6 @@ async function backgroundRefreshThreadsAndMessages(options = {}) { // Added opti
     }
 
     async function refreshThreadsAndMessages(options = {}) { // Manual Refresh / Called by Clear
-        const mc = document.getElementById('otk-messages-container');
-        if (mc) {
-            lastViewerScrollTop = mc.scrollTop;
-        }
         loadUserPostIds();
         messagesByThreadId = await loadMessagesFromDB(); // Ensure in-memory is synced with DB
         const { skipViewerUpdate = false, isChildCall = false } = options; // Destructure with default
@@ -6776,11 +6747,6 @@ const scrollButtonContainer = document.getElementById('otk-scroll-button-contain
                 return; // Ignore click if a refresh is already happening
             }
             consoleLog('[GUI] "Refresh Data" button clicked.');
-            const mc = document.getElementById('otk-messages-container');
-            if (mc) {
-                lastViewerScrollTop = mc.scrollTop;
-                consoleLog('[GUI] Captured scroll position before refresh:', lastViewerScrollTop);
-            }
             // isManualRefreshInProgress is set to true at the start of refreshThreadsAndMessages
             // and false in its finally block. This prevents the race condition without disabling the button.
             try {
