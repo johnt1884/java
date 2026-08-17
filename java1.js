@@ -4330,7 +4330,7 @@ function _createMessageHeaderIcons(message, messageDiv, isFiltered, headerContai
                     quotesContainer.style.cssText = `
                         background-color: var(--otk-msg-depth-even-bg-color, #ececec);
                         border-radius: 8px;
-                        padding: ${otkQuotedOuterPaddingTemp} 28px ${otkQuotedOuterPaddingTemp} 28px;
+                        padding: ${otkQuotedOuterPaddingTemp} 0px ${otkQuotedOuterPaddingTemp} 0px;
                         margin-top: 0px;
                         margin-bottom: ${otkNewMessageSpaceBelowQuoteBlockTemp};
                         display: flex;
@@ -4851,7 +4851,7 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
                                         quotesContainer.style.cssText = `
                                             background-color: var(--otk-msg-depth-even-bg-color, #ececec);
                                             border-radius: 8px;
-                                            padding: ${otkQuotedOuterPadding} 28px ${otkQuotedOuterPadding} 28px;
+                                            padding: ${otkQuotedOuterPadding} 0px ${otkQuotedOuterPadding} 0px;
                                             margin-top: 0px;
                                             margin-bottom: ${otkNewMessageSpaceBelowQuoteBlock};
                                             display: flex;
@@ -5040,7 +5040,7 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
                         quotesContainer.style.cssText = `
                             background-color: var(--otk-msg-depth-even-bg-color, #ececec);
                             border-radius: 8px;
-                            padding: ${otkQuotedOuterPadding} 28px ${otkQuotedOuterPadding} 28px;
+                            padding: ${otkQuotedOuterPadding} 0px ${otkQuotedOuterPadding} 0px;
                             margin-top: 0px;
                             margin-bottom: ${otkNewMessageSpaceBelowQuoteBlock};
                             display: flex;
