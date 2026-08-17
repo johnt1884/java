@@ -4330,7 +4330,7 @@ function _createMessageHeaderIcons(message, messageDiv, isFiltered, headerContai
                     quotesContainer.style.cssText = `
                         background-color: var(--otk-msg-depth-even-bg-color, #ececec);
                         border-radius: 8px;
-                        padding: ${otkQuotedOuterPaddingTemp} 28px ${otkQuotedOuterPaddingTemp} 28px;
+                        padding: ${otkQuotedOuterPaddingTemp} 14px ${otkQuotedOuterPaddingTemp} 14px;
                         margin-top: 0px;
                         margin-bottom: ${otkNewMessageSpaceBelowQuoteBlockTemp};
                         display: flex;
@@ -4851,7 +4851,7 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
                                         quotesContainer.style.cssText = `
                                             background-color: var(--otk-msg-depth-even-bg-color, #ececec);
                                             border-radius: 8px;
-                                            padding: ${otkQuotedOuterPadding} 28px ${otkQuotedOuterPadding} 28px;
+                                            padding: ${otkQuotedOuterPadding} 14px ${otkQuotedOuterPadding} 14px;
                                             margin-top: 0px;
                                             margin-bottom: ${otkNewMessageSpaceBelowQuoteBlock};
                                             display: flex;
@@ -5040,7 +5040,7 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
                         quotesContainer.style.cssText = `
                             background-color: var(--otk-msg-depth-even-bg-color, #ececec);
                             border-radius: 8px;
-                            padding: ${otkQuotedOuterPadding} 28px ${otkQuotedOuterPadding} 28px;
+                            padding: ${otkQuotedOuterPadding} 14px ${otkQuotedOuterPadding} 14px;
                             margin-top: 0px;
                             margin-bottom: ${otkNewMessageSpaceBelowQuoteBlock};
                             display: flex;
@@ -5453,11 +5453,6 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
 
                     if (dbResult) {
                         message.attachment.localStoreId = filehash_db_key;
-                    } else {
-                        const isVideo = ['.webm', '.mp4'].includes(post.ext.toLowerCase());
-                        if (!isVideo && mediaDownloadQueue.length < 15) {
-                            mediaDownloadQueue.push({ post, message, filehash_db_key, board: opPost.board || 'b' });
-                        }
                     }
                 }
             }
