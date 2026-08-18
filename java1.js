@@ -2809,7 +2809,7 @@ function renderThreadList() {
     const themeSettings = JSON.parse(localStorage.getItem(THEME_SETTINGS_KEY)) || {};
     const messageLimitEnabled = themeSettings.otkMessageLimitEnabled !== false;
     if (messageLimitEnabled) {
-        const messageLimitValue = parseInt(themeSettings.otkMessageLimitValue || '500', 10);
+        const messageLimitValue = parseInt(themeSettings.otkMessageLimitValue || '250', 10);
         consoleLog(`[ViewerPruning] Message limit check: Total messages=${allMessages.length}, Limit=${messageLimitValue}, Enabled=${messageLimitEnabled}`);
         if (allMessages.length > messageLimitValue) {
             consoleLog(`[ViewerPruning] Message limit exceeded. Starting advanced pruning for viewer.`);
@@ -3055,7 +3055,7 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
         let anchorInfo = null;
         const messageElements = messagesContainer.querySelectorAll('.otk-message-container-main');
         const messageLimitEnabled = (localStorage.getItem('otkMessageLimitEnabled') !== 'false');
-        const messageLimitValue = parseInt(localStorage.getItem('otkMessageLimitValue') || '500', 10);
+        const messageLimitValue = parseInt(localStorage.getItem('otkMessageLimitValue') || '250', 10);
         const potentialPruneCount = Math.max(0, messageElements.length + newMessages.length - messageLimitValue);
 
         for (let i = 0; i < messageElements.length; i++) {
@@ -8783,29 +8783,38 @@ function createThemeOptionRow(options) {
         // --- Enable Message Number Limiting & Set Value ---
         const initialThemeSettings = JSON.parse(localStorage.getItem(THEME_SETTINGS_KEY)) || {};
 
-        const messageLimitGroup = createTimeInputRow({
-            labelText: "Message Number Limiting:",
-            storageKey: 'otkMessageLimitValue',
-            defaultValueSeconds: 500, // This is not seconds, but reusing the function structure
-            idSuffix: 'message-limit-value'
-        });
-        // Adapt the time input row for a simple number input
-        const messageLimitValueInput = messageLimitGroup.querySelector('input[type="text"]');
+        const messageLimitGroup = document.createElement('div');
+        messageLimitGroup.classList.add('otk-option-row');
+
+        const messageLimitLabel = document.createElement('label');
+        messageLimitLabel.textContent = "Message Number Limiting:";
+        messageLimitLabel.htmlFor = 'otk-message-limit-value-input';
+        messageLimitLabel.style.cssText = "font-size: 12px; text-align: left;";
+
+        const messageLimitValueInput = document.createElement('input');
         messageLimitValueInput.type = 'number';
-        messageLimitValueInput.placeholder = '';
-        messageLimitValueInput.value = initialThemeSettings.otkMessageLimitValue || '500';
+        messageLimitValueInput.id = 'otk-message-limit-value-input';
+        messageLimitValueInput.style.cssText = "width: 100%; height: 25px; box-sizing: border-box; font-size: 12px; text-align: right; flex-grow: 1;";
+        messageLimitValueInput.value = initialThemeSettings.otkMessageLimitValue || '250';
+
+        const upButton = document.createElement('button');
+        upButton.textContent = '▲';
+        upButton.style.cssText = "width: 25px; height: 25px; padding: 0; font-size: 10px; flex-shrink: 0;";
+
+        const downButton = document.createElement('button');
+        downButton.textContent = '▼';
+        downButton.style.cssText = "width: 25px; height: 25px; padding: 0; font-size: 10px; flex-shrink: 0;";
+
         messageLimitValueInput.addEventListener('change', () => {
              const numValue = parseInt(messageLimitValueInput.value, 10);
              if (!isNaN(numValue) && numValue >= 0) {
                  saveThemeSetting('otkMessageLimitValue', String(numValue), true);
              } else {
                  const savedSettings = JSON.parse(localStorage.getItem(THEME_SETTINGS_KEY)) || {};
-                 messageLimitValueInput.value = savedSettings.otkMessageLimitValue || '500';
+                 messageLimitValueInput.value = savedSettings.otkMessageLimitValue || '250';
              }
         });
-        // Remove the hh:mm:ss conversion logic from this specific instance
-        const upButton = messageLimitGroup.querySelector('button:nth-of-type(1)');
-        const downButton = messageLimitGroup.querySelector('button:nth-of-type(2)');
+
         upButton.onclick = () => {
             messageLimitValueInput.stepUp(10);
             messageLimitValueInput.dispatchEvent(new Event('change'));
@@ -8814,6 +8823,15 @@ function createThemeOptionRow(options) {
             messageLimitValueInput.stepDown(10);
             messageLimitValueInput.dispatchEvent(new Event('change'));
         };
+
+        const messageLimitControlsWrapper = document.createElement('div');
+        messageLimitControlsWrapper.style.cssText = "display: flex; align-items: center; gap: 4px; width: 100%;";
+        messageLimitControlsWrapper.appendChild(messageLimitValueInput);
+        messageLimitControlsWrapper.appendChild(upButton);
+        messageLimitControlsWrapper.appendChild(downButton);
+
+        messageLimitGroup.appendChild(messageLimitLabel);
+        messageLimitGroup.appendChild(messageLimitControlsWrapper);
 
 
         const messageLimitEnableGroup = document.createElement('div');
@@ -8824,8 +8842,8 @@ function createThemeOptionRow(options) {
         messageLimitEnableLabel.htmlFor = 'otk-message-limit-enable-checkbox';
         messageLimitEnableLabel.style.cssText = "font-size: 12px; text-align: left;";
 
-        const messageLimitControlsWrapper = document.createElement('div');
-        messageLimitControlsWrapper.style.cssText = "display: flex; align-items: center; gap: 8px; justify-content: flex-end;";
+        const messageLimitEnableWrapper = document.createElement('div');
+        messageLimitEnableWrapper.style.cssText = "display: flex; align-items: center; gap: 8px; justify-content: flex-end;";
 
         const messageLimitEnableCheckbox = document.createElement('input');
         messageLimitEnableCheckbox.type = 'checkbox';
@@ -8833,9 +8851,9 @@ function createThemeOptionRow(options) {
         messageLimitEnableCheckbox.style.cssText = "height: 16px; width: 16px;";
         messageLimitEnableCheckbox.checked = initialThemeSettings.otkMessageLimitEnabled !== false;
 
-        messageLimitControlsWrapper.appendChild(messageLimitEnableCheckbox);
+        messageLimitEnableWrapper.appendChild(messageLimitEnableCheckbox);
         messageLimitEnableGroup.appendChild(messageLimitEnableLabel);
-        messageLimitEnableGroup.appendChild(messageLimitControlsWrapper);
+        messageLimitEnableGroup.appendChild(messageLimitEnableWrapper);
 
 
         const toggleValueInput = (enabled) => {
