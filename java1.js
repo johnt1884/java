@@ -4646,6 +4646,7 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
                 bottomPadding = otkNewMessagePaddingBottom;
             } else {
                 bottomPadding = otkQuotedInternalPadding;
+                paddingLeft = otkQuotedInternalPadding;
             }
 
             if (!isTopLevelMessage) { // Quoted messages
@@ -5404,8 +5405,10 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
             let newlyStoredImagesInThread = 0;
             let newlyStoredVideosInThread = 0;
 
-            const mediaDownloadQueue = [];
-            const messagePromises = posts.map(async (post) => {
+        let thumbDownloadCount = 0;
+        const board = opPost.board || 'b';
+
+        for (const post of posts) {
             fetchedMessagesInThread++;
             const message = {
                 id: post.no,
@@ -5442,98 +5445,49 @@ function createMessageElementDOM(message, mediaLoadPromises, uniqueImageViewerHa
                     tn_w: post.tn_w, tn_h: post.tn_h
                 };
 
-                if (otkMediaDB) {
-                    const transaction = otkMediaDB.transaction(['mediaStore'], 'readonly');
-                    const store = transaction.objectStore('mediaStore');
-                    const dbRequest = store.get(filehash_db_key);
-                    const dbResult = await new Promise((resolve, reject) => {
-                        dbRequest.onsuccess = () => resolve(dbRequest.result);
-                        dbRequest.onerror = (e) => reject(e.target.error);
+                const extLower = post.ext.toLowerCase();
+                if (['.jpg', '.jpeg', '.png', '.gif'].includes(extLower) && otkMediaDB) {
+                    const thumbnail_filehash_db_key = filehash_db_key + '_thumb';
+                    const thumbGetTransaction = otkMediaDB.transaction(['mediaStore'], 'readonly');
+                    const thumbGetStore = thumbGetTransaction.objectStore('mediaStore');
+                    const thumbDbRequest = thumbGetStore.get(thumbnail_filehash_db_key);
+                    const thumbDbResult = await new Promise((resolve) => {
+                        thumbDbRequest.onsuccess = () => resolve(thumbDbRequest.result);
+                        thumbDbRequest.onerror = () => resolve(null);
                     });
 
-                    if (dbResult) {
-                        message.attachment.localStoreId = filehash_db_key;
-                    }
-                }
-            }
-            return message;
-        });
-
-        const initialProcessedMessages = await Promise.all(messagePromises);
-        processedMessages.push(...initialProcessedMessages);
-
-        // Process media download queue sequentially
-        for (const item of mediaDownloadQueue) {
-            const { post, message, filehash_db_key, board } = item;
-            const mediaUrl = `https://i.4cdn.org/${board}/${post.tim}${post.ext}`;
-            try {
-                const mediaResponse = await safeFetchBlob(mediaUrl, 10000);
-
-                if (mediaResponse) {
-                    const blob = mediaResponse;
-                    const storeTransaction = otkMediaDB.transaction(['mediaStore'], 'readwrite');
-                    const mediaStore = storeTransaction.objectStore('mediaStore');
-                    const itemToStore = {
-                        filehash: filehash_db_key, blob: blob, originalThreadId: threadId,
-                        filename: post.filename, ext: post.ext, timestamp: Date.now(), isThumbnail: false
-                    };
-                    const putRequest = mediaStore.put(itemToStore);
-                    await new Promise((resolve, reject) => {
-                        putRequest.onsuccess = () => {
-                            message.attachment.localStoreId = filehash_db_key;
-                            const extLower = post.ext.toLowerCase();
-                            if (['.jpg', '.jpeg', '.png', '.gif'].includes(extLower)) newlyStoredImagesInThread++;
-                            else if (['.webm', '.mp4'].includes(extLower)) newlyStoredVideosInThread++;
-                            updateDisplayedStatistics();
-                            resolve();
-                        };
-                        putRequest.onerror = (e) => reject(e.target.error);
-                    });
-                }
-            } catch (fetchError) {
-                consoleError(`Error fetching media for post ${post.no}:`, fetchError);
-            }
-
-            const extLower = post.ext.toLowerCase();
-            if (['.jpg', '.jpeg', '.png', '.gif'].includes(extLower)) {
-                const thumbnail_filehash_db_key = filehash_db_key + '_thumb';
-                const thumbGetTransaction = otkMediaDB.transaction(['mediaStore'], 'readonly');
-                const thumbGetStore = thumbGetTransaction.objectStore('mediaStore');
-                const thumbDbRequest = thumbGetStore.get(thumbnail_filehash_db_key);
-                const thumbDbResult = await new Promise((resolve, reject) => {
-                    thumbDbRequest.onsuccess = () => resolve(thumbDbRequest.result);
-                    thumbDbRequest.onerror = (e) => reject(e.target.error);
-                });
-
-                if (thumbDbResult) {
-                    message.attachment.localThumbStoreId = thumbnail_filehash_db_key;
-                } else {
-                    const thumbUrl = `https://i.4cdn.org/${board}/${post.tim}s.jpg`;
-                    try {
-                        const thumbResponse = await safeFetchBlob(thumbUrl, 5000);
-                        if (thumbResponse) {
-                            const thumbBlob = thumbResponse;
-                            const thumbStoreTransaction = otkMediaDB.transaction(['mediaStore'], 'readwrite');
-                            const thumbMediaStore = thumbStoreTransaction.objectStore('mediaStore');
-                            const thumbItemToStore = {
-                                filehash: thumbnail_filehash_db_key, blob: thumbBlob, originalThreadId: threadId,
-                                filename: `${post.filename}_thumb.jpg`, ext: '.jpg', timestamp: Date.now(), isThumbnail: true
-                            };
-                            const thumbPutRequest = thumbMediaStore.put(thumbItemToStore);
-                            await new Promise((resolve, reject) => {
-                                thumbPutRequest.onsuccess = () => {
-                                    message.attachment.localThumbStoreId = thumbnail_filehash_db_key;
-                                    resolve();
+                    if (thumbDbResult) {
+                        message.attachment.localThumbStoreId = thumbnail_filehash_db_key;
+                    } else if (thumbDownloadCount < 10) {
+                        thumbDownloadCount++;
+                        const thumbUrl = `https://i.4cdn.org/${board}/${post.tim}s.jpg`;
+                        try {
+                            const thumbResponse = await safeFetchBlob(thumbUrl, 3000);
+                            if (thumbResponse) {
+                                const thumbBlob = thumbResponse;
+                                const thumbStoreTransaction = otkMediaDB.transaction(['mediaStore'], 'readwrite');
+                                const thumbMediaStore = thumbStoreTransaction.objectStore('mediaStore');
+                                const thumbItemToStore = {
+                                    filehash: thumbnail_filehash_db_key, blob: thumbBlob, originalThreadId: threadId,
+                                    filename: `${post.filename}_thumb.jpg`, ext: '.jpg', timestamp: Date.now(), isThumbnail: true
                                 };
-                                thumbPutRequest.onerror = (e) => reject(e.target.error);
-                            });
-                        }
-                    } catch (thumbFetchError) {
-                        consoleError(`Error fetching thumbnail for post ${post.no}:`, thumbFetchError);
+                                const thumbPutRequest = thumbMediaStore.put(thumbItemToStore);
+                                await new Promise((resolve) => {
+                                    thumbPutRequest.onsuccess = () => {
+                                        message.attachment.localThumbStoreId = thumbnail_filehash_db_key;
+                                        resolve();
+                                    };
+                                    thumbPutRequest.onerror = () => resolve();
+                                });
+                            }
+                        } catch (e) {}
                     }
                 }
             }
+            processedMessages.push(message);
         }
+
+        consoleLog(`[fetchThreadMessages] Sequentially processed ${processedMessages.length} posts for thread ${threadId}.`);
 
             // Refined counting for fetched media (regardless of storage status)
             // This ensures fetchedImagesInThread and fetchedVideosInThread are accurate even if media was already in DB.
