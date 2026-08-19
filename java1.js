@@ -3140,6 +3140,19 @@ updateDisplayedStatistics(false); // Update stats after all media processing is 
                     if (!isNaN(messageId)) {
                         renderedMessageIdsInViewer.delete(messageId);
                     }
+                    const blobMediaElements = messageToRemove.querySelectorAll('img[src^="blob:"], video[src^="blob:"], source[src^="blob:"]');
+                    blobMediaElements.forEach(el => {
+                        const blobUrl = el.src;
+                        if (blobUrl && createdBlobUrls.has(blobUrl)) {
+                            URL.revokeObjectURL(blobUrl);
+                            createdBlobUrls.delete(blobUrl);
+                            for (const [hash, cachedUrl] of videoBlobUrlCache.entries()) {
+                                if (cachedUrl === blobUrl) {
+                                    videoBlobUrlCache.delete(hash);
+                                }
+                            }
+                        }
+                    });
                     messageToRemove.remove();
                 }
                 const messageElementsFinal = messagesContainer.querySelectorAll('.otk-message-container-main');
